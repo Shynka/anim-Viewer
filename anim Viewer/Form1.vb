@@ -1,10 +1,38 @@
-﻿Public Class Form1
+﻿Imports System.IO
+
+Public Class Form1
     Dim scale As Integer = 4
     Dim running As Boolean = True
     Dim loaded As Boolean
     Dim frameshown As Integer = 0
     Dim frameimages As New List(Of Bitmap)
     Dim commands As New List(Of Command)
+
+    Dim pngFilePath As String = ""
+    Dim asmFilePath As String = ""
+    Dim lastWriteTimePng As DateTime '= File.GetLastWriteTime(pngFilePath)
+    Dim lastWriteTimeAsm As DateTime '= File.GetLastWriteTime(asmFilePath)
+    'Sub CheckAndOpenFiles()
+    '    If Not pngFilePath = "" And Not asmFilePath = "" Then
+
+    '        If File.Exists(pngFilePath) Then
+    '            lastWriteTimePng = File.GetLastWriteTime(pngFilePath)
+    '            If lastWriteTimePng <> File.GetLastWriteTime(pngFilePath) Then
+    '                Dim updatedBitmap As New Bitmap(pngFilePath)
+    '                LoadImage(updatedBitmap)
+    '            End If
+    '        End If
+
+    '        If File.Exists(asmFilePath) Then
+    '            lastWriteTimeAsm = File.GetLastWriteTime(asmFilePath)
+    '            If lastWriteTimeAsm <> File.GetLastWriteTime(asmFilePath) Then
+    '                Dim updatedAsm As String = File.ReadAllText(asmFilePath)
+    '                ReadCommandsFromFile(updatedAsm)
+    '            End If
+    '        End If
+    '    End If
+    'End Sub
+
     Private Sub Form1_Load(sender As Object, e As EventArgs) Handles MyBase.Load
         Me.SetStyle(ControlStyles.OptimizedDoubleBuffer Or ControlStyles.UserPaint Or ControlStyles.AllPaintingInWmPaint, True)
         Dim gameThread As New Threading.Thread(Sub()
@@ -13,7 +41,7 @@
                                                    While running
                                                        If sw.ElapsedMilliseconds >= 1000 / 60 Then
                                                            sw.Restart()
-                                                           tick
+                                                           tick()
                                                        End If
                                                        Threading.Thread.Sleep(1)
                                                    End While
@@ -51,21 +79,23 @@
 
         For Each f As String In files
             If f.ToLower.EndsWith(".png") Then
+                pngFilePath = f
                 LoadImage(New Bitmap(f))
                 commands.Clear()
             ElseIf f.ToLower.EndsWith(".asm") Then
-                commands = ReadCommandsFromFile(f)
+                asmFilePath = f
+                ReadCommandsFromFile(IO.File.ReadAllText(f))
             End If
         Next
         loaded = True
+
         RunAnimation()
         Me.Refresh()
     End Sub
-    Public Function ReadCommandsFromFile(filePath As String) As List(Of Command)
-        Dim commands As New List(Of Command)
-        Dim lines As String() = IO.File.ReadAllLines(filePath)
+    Public Sub ReadCommandsFromFile(text As String)
+        commands.Clear()
 
-        For Each line As String In lines
+        For Each line As String In text.Split(New String() {vbLf, vbTab}, StringSplitOptions.None)
             Dim cleanedLine = line.Trim().ToLower()
             Dim command As New Command
             Dim firstPart As String = cleanedLine.Split(" "c)(0).Trim()
@@ -88,9 +118,7 @@
 
             commands.Add(command)
         Next
-
-        Return commands
-    End Function
+    End Sub
     Public Function LoadImage(img As Bitmap)
         frameimages.Clear()
         frameshown = 0
@@ -119,6 +147,7 @@
     Public Sub tick()
         If loaded Then
             RunAnimation()
+            Threading.Thread.Sleep(2000)
         End If
     End Sub
     Public Function ImageSplicer(src As Bitmap, r As Rectangle) As Bitmap
@@ -179,4 +208,10 @@
         Threading.Thread.Sleep(durantion * 25)
     End Sub
 
+    Private Sub Form1_MouseUp(sender As Object, e As MouseEventArgs) Handles Me.MouseUp
+        LoadImage(New Bitmap(pngFilePath))
+        ReadCommandsFromFile(IO.File.ReadAllText(asmFilePath))
+        loaded = True
+        RunAnimation()
+    End Sub
 End Class
